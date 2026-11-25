@@ -1,0 +1,7 @@
+# Only the website itself is published. The arranger and build scripts, the settings file and
+# the notes stay on this Mac.
+/_build/
+/projects.json
+/README.md
+/media/manifest.json
+.DS_Store

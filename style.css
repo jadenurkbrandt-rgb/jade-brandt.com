@@ -1,0 +1,464 @@
+/* Jade Brandt — portfolio
+   Desktop: a fixed frame, no vertical scrolling. The first screen shows the roles and the projects
+   beside the first project's cover. Clicking a project shows it on its own: the project list stays
+   on the left on a white panel, the images scroll sideways underneath it, and the project's
+   description sits at the bottom left.
+   Phones held upright: the same idea, top to bottom: the project list, the cover (or a role's
+   collage) and the roles; a project shows its roles above its images and its description below.
+   Phones held sideways: the projects are stacked, each one scrolling sideways. */
+
+:root {
+  --g: 14px;                                   /* outer gutter */
+  --gap: var(--g);                             /* space between images */
+  --col: calc(100vw - 2 * var(--g));           /* the screen minus the gutters */
+  --cap-gap: 18px;                             /* space between projects (phones) */
+  --fs: 14px;
+  --fs-head: 18px;                             /* name / about */
+  --fg: #000;
+  --dim: #a3a3a3;                              /* hovered / active items */
+  --bg: #fff;
+  --ph: #f2f2f2;                               /* placeholder while media loads */
+  --serif: "Times New Roman", Times, "Liberation Serif", serif;
+  --ease: cubic-bezier(.3, .7, .2, 1);
+  /* desktop frame (--top and --panel are measured by main.js) */
+  --top: 56px;                                 /* header height: the frame starts below it */
+  --panel: 280px;                              /* white panel behind the project list */
+  --list-end: 50vw;                            /* right edge of the project list on the first screen */
+  --cover-a: 1.2;                              /* covers are cropped to this shape (6:5, like "Archive") */
+  /* phones held upright (measured by main.js) */
+  --ph-h: 60vw;                                /* image height */
+  --land-gap: 24px;                            /* first screen: from the project list down to the cover */
+  --mid-top: 40vh;                             /* the room for a role's collage */
+  --mid-h: 30vh;
+}
+
+@media (min-width: 900px) {
+  :root {
+    --g: 20px;
+    --cap-gap: 26px;
+    --fs: 15px;
+    --fs-head: 22px;
+  }
+}
+
+/* measure the column from the page width (ignores a scrollbar, unlike 100vw) */
+@supports (width: 1cqw) {
+  main { container-type: inline-size; }
+  .project { --col: calc(100cqw - 2 * var(--g)); }
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: var(--fs)/1.3 var(--serif);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+body.locked { overflow: hidden; }
+
+a { color: inherit; text-decoration: none; }
+a:hover, a.u, [aria-current="page"] {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+:focus-visible { outline: 1px solid currentColor; outline-offset: 3px; }
+
+/* ---------- header / footer: three-part bar across the column ---------- */
+
+.bar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: baseline;
+  margin: 0 var(--g);
+}
+.bar .name { justify-self: start; }
+.bar .mid  { justify-self: center; }
+.bar .end  { justify-self: end; grid-column: 3; }
+
+.top, .panel .bar { font-size: var(--fs-head); }
+/* header links: no underline; they turn grey on hover and while their page is open, like the
+   project and role lists */
+.top a, .panel .bar a, .panel .bar [aria-current="page"] { text-decoration: none; }
+.panel .bar [aria-current="page"] { color: var(--dim); }
+@media (hover: hover) {
+  .top a:hover, .panel .bar a:hover { color: var(--dim); }
+}
+.top  { padding: 12px 0 14px; }
+.foot { padding: 120px 0 14px; }
+.foot .name { grid-column: 1 / 3; }
+
+/* ---------- projects ---------- */
+
+.project + .project { margin-top: var(--cap-gap); }
+
+.project {
+  /* phones: row height comes from the cover's proportions (--f, set per project),
+     capped so a row always fits on screen with the header */
+  --h: min(calc(var(--col) * var(--f)), calc(100vh - 80px));
+  position: relative;
+  scroll-margin-top: 12px;
+}
+@supports (height: 1svh) {
+  .project { --h: min(calc(var(--col) * var(--f)), calc(100svh - 80px)); }
+}
+
+.strip {
+  height: var(--h);
+  display: flex;
+  gap: var(--gap);
+  padding-left: var(--g);
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+}
+.strip::-webkit-scrollbar { display: none; }
+/* the same gap after the last image as between images. The spacer has a real width (pulled back
+   over the gap before it): Safari leaves a zero-width one out of the scrolling, so the last image
+   would end flush with the edge of the screen. */
+.strip::after { content: ""; flex: 0 0 var(--gap); margin-left: calc(-1 * var(--gap)); }
+.strip:focus-visible { outline: 1px solid var(--fg); outline-offset: -1px; }
+
+.item {
+  flex: 0 0 auto;
+  margin: 0;
+  height: var(--h);
+  width: calc(var(--h) * var(--a));
+  position: relative;
+  overflow: hidden;
+  background: var(--ph);
+}
+/* phones: the cover fills the full width (landscape) or the right half (portrait) */
+.item.cover {
+  width: calc(var(--col) * var(--span));
+  margin-left: calc(var(--col) * (1 - var(--span)));
+}
+
+.item img,
+.item video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+html.js .item img { opacity: 0; transition: opacity .35s ease; }
+html.js .item img.ld { opacity: 1; }
+
+/* after the cover: roles at the top, description at the bottom */
+.item.text {
+  width: calc(var(--col) * .75);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 1em;
+  background: none;
+  color: var(--fg);
+}
+.item.text p { margin: 0; }
+.item.text p + p { margin-top: 1em; }          /* an empty line in the arranger */
+/* too long for its row: the text carries on in columns beside it (main.js sets how many) */
+.item.text.flow { display: block; column-gap: var(--gap); column-fill: auto; }
+.item.text.flow .about { margin-top: 1em; }
+
+.snd {
+  position: absolute;
+  left: 6px;
+  bottom: 4px;
+  padding: 4px;
+  border: 0;
+  background: none;
+  font: 12px/1 var(--serif);
+  color: #fff;
+  mix-blend-mode: difference;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .2s;
+}
+.item:hover .snd, .snd:focus-visible, .snd[aria-pressed="true"] { opacity: 1; }
+@media (hover: none) { .snd { opacity: 1; } }
+
+.cap {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1em;
+  margin: 6px var(--g) 0;
+}
+.cap h2 { font: inherit; margin: 0; }
+.count { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* ---------- index: roles + projects, with a collage per role ---------- */
+
+.index {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto 1fr;
+  column-gap: var(--gap);
+  margin: 2px var(--g) 22px;
+  line-height: 1.2;
+}
+.index ul { list-style: none; margin: 0; padding: 0; align-self: start; }
+.index .yr { white-space: nowrap; }
+.index button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.index button.on, .index .works a.on, .index .works a.hl { color: var(--dim); }
+@media (hover: hover) {
+  .index a:hover, .index button:hover { color: var(--dim); text-decoration: none; }
+}
+
+.collage {
+  grid-column: 1 / -1;
+  position: relative;
+  height: 0;
+  transition: height .3s ease;
+}
+.index.open .collage { height: min(78vw, 340px); margin-top: 18px; }
+.set { position: absolute; inset: 0; visibility: hidden; }
+.set.on { visibility: visible; }
+.tile {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  background: var(--ph);
+  opacity: 0;
+  transition: opacity .3s ease;
+}
+.set.on .tile { opacity: 1; }
+.tile img, .tile video { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+/* ---------- desktop: the fixed frame ---------- */
+
+@media (min-width: 900px) {
+  html.js, html.js body { height: 100%; overflow: hidden; }
+  html.js .foot { display: none; }
+
+  /* the frame: from below the header to one gutter above the bottom of the screen */
+  html.js main {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: var(--top);
+    bottom: var(--g);
+  }
+
+  html.js {
+    --img-h: 75vh;   /* every image 75% of the window height, hanging from the top of the frame */
+    /* first screen: a cover starts at the middle of the screen, or further left if it would
+       otherwise run past the right margin (but never over the project list) */
+    --land-start: max(calc(var(--list-end) + 2 * var(--g)),
+                      min(calc(var(--g) + var(--col) * .5), calc(100vw - var(--g) - var(--img-h) * var(--cover-a))));
+  }
+
+  /* one project at a time; switching cross-fades */
+  html.js .project {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    display: none;
+    --start: var(--panel);
+    --h: var(--img-h);
+  }
+  html.js .project.on, html.js .project.leaving { display: block; }
+  html.js .project.on { z-index: 1; animation: fade-in .45s ease both; }
+  html.js .project.leaving { z-index: 0; pointer-events: none; animation: fade-out .45s ease both; }
+
+  /* first screen: the covers take turns (or the hovered project's shows), the same size as in the
+     project itself. Each one dissolves softly into the next: the new cover fades in over the old
+     one (FADE_MS in main.js matches). Clicking a title slides its cover to the left and the rest
+     of the project appears. */
+  html.js:not(.proj) .project { --start: var(--land-start); }
+  html.js:not(.proj) .project.on { animation: fade-in 1.4s cubic-bezier(.45, 0, .25, 1) both; }
+  html.js:not(.proj) .project.leaving { animation: none; }
+  html.js .project .item { transition: opacity .45s ease, visibility .45s; }
+  html.js:not(.proj) .project .item:not(.cover) { opacity: 0; visibility: hidden; }
+
+  html.js .project .strip {
+    height: var(--h);
+    padding-left: var(--start);
+    transition: padding-left .6s var(--ease);
+  }
+  /* every cover has the same shape: the picture is cropped to it around its centre */
+  html.js .item.cover { width: calc(var(--h) * var(--cover-a)); margin-left: 0; }
+  html.js .item.text { width: 16em; }
+  html.js .project .cap { display: none; }
+
+  /* the index floats over the frame's left side */
+  html.js .index {
+    position: fixed;
+    z-index: 3;
+    left: var(--g);
+    top: var(--top);
+    bottom: var(--g);
+    width: calc(var(--col) * .5 - var(--gap));
+    margin: 0;
+    pointer-events: none;                   /* empty space reaches the images underneath */
+  }
+  /* only the names and the collage's pictures catch the pointer; the white space around them doesn't */
+  html.js .index li > a, html.js .index li > button, html.js .index .set.on .tile { pointer-events: auto; }
+  html.js .index .works { width: max-content; transition: transform .6s var(--ease); }
+  html.js .index .roles { transition: opacity .3s, visibility .3s; }
+  /* the collage fills the space up to the cover (one gap before it), so both can show at once */
+  html.js .collage,
+  html.js .index.open .collage { height: auto; margin-top: 40px; transition: none; width: calc(var(--land-start) - 2 * var(--g)); }
+
+  /* project view: the roles fade out, the project list moves to the left column
+     on a white panel, and the images slide underneath it */
+  html.js .index::before {
+    content: "";
+    position: fixed;
+    z-index: -1;
+    left: 0;
+    top: var(--top);
+    bottom: 0;
+    width: var(--panel);
+    background: var(--bg);
+    pointer-events: none;
+  }
+  html.js.proj .index::before { pointer-events: auto; }
+  html.js.proj .index .roles,
+  html.js.proj .index .collage { opacity: 0; visibility: hidden; }
+  html.js.proj .index .works { transform: translateX(calc(var(--col) * -.25)); }
+}
+
+/* ---------- phones held upright ---------- */
+
+.info, .pdesc { display: none; }   /* a project's roles (beside the project list) and description (below its images) */
+
+@media (max-width: 899px) and (orientation: portrait) {
+  html.js { --fs: 12px; --fs-head: 17px; }
+  html.js .foot { display: none; }
+
+  /* first screen: nothing scrolls */
+  html.js:not(.proj), html.js:not(.proj) body { height: 100%; overflow: hidden; }
+
+  /* the project list at the top, the roles at the bottom, a role's collage in between */
+  html.js .index { display: block; margin: 2px var(--g) 0; line-height: 1.25; }
+  html.js .index .roles {
+    position: fixed;
+    z-index: 2;
+    left: var(--g);
+    bottom: var(--g);
+    transition: opacity .3s, visibility .3s;
+  }
+  html.js.tight .index .roles { column-count: 2; column-gap: var(--gap); width: calc(100% - 2 * var(--g)); }
+  html.js.tight .index .roles li { break-inside: avoid; }
+  html.js .collage,
+  html.js .index.open .collage {
+    position: fixed;
+    z-index: 2;
+    left: var(--g);
+    right: var(--g);
+    top: var(--mid-top);
+    height: var(--mid-h);
+    margin: 0;
+    transition: none;
+    pointer-events: none;   /* it lies over the cover: taps go through to it unless a collage is open */
+  }
+  html.js .index .set.on { pointer-events: auto; }
+  html.js .index.open ~ main { opacity: 0; visibility: hidden; }   /* the collage takes the cover's place */
+
+  /* project view: the roles go, the open project's title is black and the others grey */
+  html.js.proj .index .roles,
+  html.js.proj .index .collage { opacity: 0; visibility: hidden; }
+  html.js.proj .index .works a { color: var(--dim); }
+  html.js.proj .index .works a.on { color: var(--fg); }
+
+  /* one project at a time; switching cross-fades (the first screen dissolves slowly, as on desktop) */
+  html.js main { position: relative; transition: opacity .3s, visibility .3s; }
+  /* the images are the same size and in the same place on the first screen and in the project */
+  html.js .project { display: none; margin: 0; --h: var(--ph-h); }
+  html.js .project.on { display: block; position: relative; z-index: 1; animation: fade-in .45s ease both; }
+  html.js .project.leaving {
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 0;
+    pointer-events: none;
+    animation: fade-out .45s ease both;
+  }
+  html.js:not(.proj) .project.on { animation: fade-in 1.4s cubic-bezier(.45, 0, .25, 1) both; }
+  html.js:not(.proj) .project.leaving { animation: none; }
+
+  /* first screen: only the cover, in the middle; tapping it opens the project, and the rest of
+     the images appear beside it */
+  html.js .project .item { transition: opacity .45s ease, visibility .45s; }
+  html.js:not(.proj) .project .item:not(.cover) { opacity: 0; visibility: hidden; }
+  html.js .project .strip { padding-left: calc(var(--g) + max(0px, (var(--col) - var(--h) * var(--cover-a)) / 2)); }
+  html.js:not(.proj) .project .strip { overflow-x: hidden; }
+  html.js:not(.proj) .snd { display: none; }
+  html.js .item.cover { width: calc(var(--h) * var(--cover-a)); margin-left: 0; }
+  html.js .item.text, html.js .project .cap { display: none; }
+
+  /* Project view: the text goes where there is room. The roles sit in the right half beside the
+     project list (level with its top); the description sits just below the images, in the space
+     the roles list has on the first screen: one column, or two if it is long. Above the images is
+     just the space between the list and the cover. */
+  html.js .info { display: block; position: relative; height: var(--land-gap); }
+  html.js .info .credits {
+    position: absolute;
+    left: calc(var(--g) + (var(--col) + var(--gap)) / 2);
+    top: calc(-1 * var(--list-h, 180px));
+    width: calc((var(--col) - var(--gap)) / 2);
+    pointer-events: none;
+  }
+  html.js .pdesc {
+    display: block;
+    width: calc((var(--col) - var(--gap)) / 2);
+    margin: 16px var(--g) 0;
+    padding-bottom: var(--g);
+  }
+  html.js .project.wide .pdesc { width: auto; column-count: 2; column-gap: var(--gap); }
+  html.js .info .credits, html.js .pdesc { opacity: 0; transition: opacity .45s ease; }
+  html.js.proj .info .credits, html.js.proj .pdesc { opacity: 1; }
+  html.js .info p, html.js .pdesc p { margin: 0; }
+  html.js .info p + p, html.js .pdesc p + p { margin-top: 1em; }
+}
+
+@keyframes fade-in  { from { opacity: 0; } }
+@keyframes fade-out { to   { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .collage, .tile, .strip, .item, .index .works, .index .roles, main, .info .credits, .pdesc { transition: none !important; }
+  .project { animation: none !important; }
+}
+
+/* ---------- about ---------- */
+
+.panel {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  overflow-y: auto;
+  background: var(--bg);
+  padding-top: 12px;
+}
+.panel[hidden] { display: none; }
+.panel .body {
+  max-width: 34em;
+  margin: 72px var(--g) 0;
+  padding-bottom: 40px;
+}
+.panel .body p { margin: 0 0 1em; }
+.panel .body .lines { white-space: pre-line; margin-top: 2.6em; }   /* contact details: line breaks as typed */
+
+@media (prefers-reduced-motion: reduce) {
+  html.js .item img { transition: none; }
+}
