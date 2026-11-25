@@ -102,10 +102,23 @@
   // 1080p on bigger screens, 720p on phones or when the visitor asked to save data
   const saveData = navigator.connection && navigator.connection.saveData;
   const hd = () => innerWidth >= 900 && !saveData;
+  const posterBehind = v => {
+    const p = v.getAttribute('poster') || v.dataset.poster;
+    if (!p) return;
+    if (!v.getAttribute('poster')) v.poster = p;
+    const fig = v.closest('.item');
+    if (fig && !fig.style.backgroundImage) fig.style.backgroundImage = `url("${p}")`;
+  };
+  $$('.item video').forEach(v => {
+    const show = () => v.classList.add('shown');
+    v.addEventListener('loadeddata', show, { once: true });
+    v.addEventListener('playing', show, { once: true });
+    if (v.readyState >= 2) show();
+  });
   const load = v => {
     if (v.dataset.loaded) return;
     v.dataset.loaded = '1';
-    if (v.dataset.poster) v.poster = v.dataset.poster;
+    posterBehind(v);
     v.preload = 'metadata';
     v.src = (hd() && v.dataset.srcHd) || v.dataset.src;
   };
@@ -158,7 +171,13 @@
   const loadAll = sec => {
     if (!sec || sec._all) return;
     sec._all = true;
-    $$('.item img', sec).forEach(img => { img.loading = 'eager'; });
+    $$('.item img', sec).forEach(img => {
+      img.loading = 'eager';
+      const pre = new Image();
+      pre.sizes = img.sizes;
+      if (img.srcset) pre.srcset = img.srcset;
+      pre.src = img.getAttribute('src');
+    });
     $$('.item video', sec).forEach(load);
   };
   const warm = sec => {
@@ -531,7 +550,7 @@
       setTimeout(() => sections.forEach(sec => {
         const img = $('.item.cover img', sec), v = $('.item.cover video', sec);
         if (img) img.loading = 'eager';
-        if (v && v.dataset.poster && !v.getAttribute('poster')) v.poster = v.dataset.poster;
+        if (v) posterBehind(v);
       }), 200);
       setTimeout(() => sets.forEach(s => fill(s, false)), 1500);
     });

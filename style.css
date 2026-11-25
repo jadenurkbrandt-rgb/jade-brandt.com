@@ -149,6 +149,10 @@ a:hover, a.u, [aria-current="page"] {
   height: 100%;
   object-fit: cover;
 }
+/* a video shows once it has a frame; until then its still image (set behind it by main.js) shows */
+.item { background-position: center; background-size: cover; background-repeat: no-repeat; }
+html.js .item video { opacity: 0; transition: opacity .25s ease; }
+html.js .item video.shown { opacity: 1; }
 html.js .item img { opacity: 0; transition: opacity .35s ease; }
 html.js .item img.ld { opacity: 1; }
 
@@ -464,5 +468,5 @@ html.js .item img.ld { opacity: 1; }
 .panel .body .lines { white-space: pre-line; margin-top: 2.6em; }   /* contact details: line breaks as typed */
 
 @media (prefers-reduced-motion: reduce) {
-  html.js .item img { transition: none; }
+  html.js .item img, html.js .item video { transition: none; }
 }
