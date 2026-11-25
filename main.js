@@ -153,6 +153,14 @@
   const mark = id => workLinks.forEach(a => a.classList.toggle('on', a.dataset.p === id));
 
   // start loading a project's first images (e.g. while its title is hovered)
+  // an opened project loads all its pictures (and its videos' first frames) straight away, so
+  // swiping through it never waits for the next picture to arrive
+  const loadAll = sec => {
+    if (!sec || sec._all) return;
+    sec._all = true;
+    $$('.item img', sec).forEach(img => { img.loading = 'eager'; });
+    $$('.item video', sec).forEach(load);
+  };
   const warm = sec => {
     if (!sec || sec._warm) return;
     sec._warm = true;
@@ -276,6 +284,7 @@
     s.classList.toggle('static', isStatic(s));
     if (k) s.scrollTo({ left: stop(s, k), behavior: swapped ? 'auto' : smooth });
     else if (s.scrollLeft) s.scrollTo({ left: 0, behavior: smooth });
+    loadAll(sec);
     warm(sections[sections.indexOf(sec) + 1]);
     if (push && location.hash !== '#' + id) history.pushState(null, '', '#' + id);
   };
@@ -295,6 +304,7 @@
 
   // phones: jump to the project's row
   const goTo = (sec, k) => {
+    loadAll(sec);
     sec.scrollIntoView({ behavior: smooth, block: 'start' });
     const s = stripOf(sec);
     s.scrollTo({ left: stop(s, k), behavior: smooth });
@@ -570,6 +580,8 @@
   const measure = () => {
     const head = $('.top');
     if (head) root.style.setProperty('--top', head.offsetHeight + 'px');
+    const aboutLink = head && $('.end', head);
+    if (aboutLink) root.style.setProperty('--about-x', aboutLink.getBoundingClientRect().left + 'px');
     const list = index && $('.works', index);
     if (list && wide()) {
       const g = parseFloat(getComputedStyle(root).getPropertyValue('--g')) || 20;

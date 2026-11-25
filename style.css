@@ -217,6 +217,7 @@ html.js .item img.ld { opacity: 1; }
   text-align: left;
 }
 .index button.on, .index .works a.on, .index .works a.hl { color: var(--dim); }
+.index a, .index a:hover { text-decoration: none; }   /* no underline, also when a title is tapped on a phone */
 @media (hover: hover) {
   .index a:hover, .index button:hover { color: var(--dim); text-decoration: none; }
 }
@@ -430,6 +431,9 @@ html.js .item img.ld { opacity: 1; }
   html.js.proj .info .credits, html.js.proj .pdesc { opacity: 1; }
   html.js .info p, html.js .pdesc p { margin: 0; }
   html.js .info p + p, html.js .pdesc p + p { margin-top: 1em; }
+
+  /* about page: the text starts where the project list does and its lines end under "about" */
+  html.js .panel .body { margin-top: 16px; max-width: none; width: calc(var(--about-x, 75vw) - var(--g)); }
 }
 
 @keyframes fade-in  { from { opacity: 0; } }
