@@ -474,6 +474,7 @@ html.js .item img.ld { opacity: 1; }
 .panel .cv .r a { text-decoration: none; }
 @media (hover: hover) { .panel .cv .r a:hover { color: var(--dim); } }
 @media (min-width: 900px) { .panel .cv { width: 46em; max-width: calc(100vw - 2 * var(--g)); } }   /* desktop: rows on one line */
+@media (min-width: 900px) { html.js .panel .body { margin-top: 14px; } }   /* desktop: the about text starts level with the project list */
 
 @media (prefers-reduced-motion: reduce) {
   html.js .item img, html.js .item video { transition: none; }
