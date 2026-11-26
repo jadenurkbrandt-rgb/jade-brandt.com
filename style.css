@@ -466,6 +466,14 @@ html.js .item img.ld { opacity: 1; }
 }
 .panel .body p { margin: 0 0 1em; }
 .panel .body .lines { white-space: pre-line; margin-top: 2.6em; }   /* contact details: line breaks as typed */
+/* the CV under the contact details: grey section headings, then year | text rows */
+.panel .cv { margin-top: 2.6em; }
+.panel .cv .s + .s { margin-top: 1.3em; }
+.panel .cv .h { margin: 0 0 .2em; color: var(--dim); }
+.panel .cv .r { display: grid; grid-template-columns: 5.6em 1fr; column-gap: .8em; }
+.panel .cv .r a { text-decoration: none; }
+@media (hover: hover) { .panel .cv .r a:hover { color: var(--dim); } }
+@media (min-width: 900px) { .panel .cv { width: 46em; max-width: calc(100vw - 2 * var(--g)); } }   /* desktop: rows on one line */
 
 @media (prefers-reduced-motion: reduce) {
   html.js .item img, html.js .item video { transition: none; }
