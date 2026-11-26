@@ -115,6 +115,7 @@
     v.addEventListener('playing', show, { once: true });
     if (v.readyState >= 2) show();
   });
+  const tryPlay = v => { const p = v.play(); if (p && p.catch) p.catch(() => {}); };
   const load = v => {
     if (v.dataset.loaded) return;
     v.dataset.loaded = '1';
@@ -134,14 +135,39 @@
     }), { rootMargin: '100% 0px' });
     strips.forEach(s => stripIO.observe(s));
 
+    // The videos on screen play (muted). A phone may refuse to start them by itself (an iPhone in
+    // Low Power Mode blocks autoplay on every website); then the next touch or click starts them.
+    const wanted = new Set();
     const playIO = new IntersectionObserver(es => es.forEach(e => {
       const v = e.target;
       if (e.isIntersecting) {
+        wanted.add(v);
         load(v);
-        if (!reduce || v.dataset.user) v.play().catch(() => {});
-      } else v.pause();
+        tryPlay(v);
+      } else { wanted.delete(v); v.pause(); }
     }), { threshold: 0.15 });
     vids.forEach(v => playIO.observe(v));
+    // on a touch or click: start any video that is on screen and visible but not playing
+    const onScreen = v => {
+      const r = v.getBoundingClientRect();
+      return r.width > 0 && r.bottom > 0 && r.right > 0 && r.top < innerHeight && r.left < innerWidth &&
+        getComputedStyle(v.closest('.item') || v).visibility !== 'hidden';
+    };
+    let primed = false;
+    const retry = () => {
+      vids.forEach(v => { if (v.paused && (wanted.has(v) || onScreen(v))) { load(v); tryPlay(v); } });
+      if (primed) return;
+      primed = true;
+      // the first touch also unlocks every cover video, so the covers can start by themselves as
+      // they take turns on the first screen
+      $$('.item.cover video').forEach(v => {
+        if (!v.paused || wanted.has(v)) return;
+        load(v);
+        const pr = v.play();
+        if (pr && pr.then) pr.then(() => { if (!wanted.has(v) && !onScreen(v)) v.pause(); }).catch(() => {});
+      });
+    };
+    ['touchend', 'click', 'keydown'].forEach(t => addEventListener(t, retry, { capture: true, passive: true }));
   } else vids.forEach(load);
 
   // sound toggle (one video with sound at a time)
@@ -472,7 +498,7 @@
       if (on) {
         fill(set, true);
         layout(set);
-        if (!reduce) $$('video', set).forEach(v => v.play().catch(() => {}));
+        $$('video', set).forEach(tryPlay);
       }
     });
   }
