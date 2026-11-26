@@ -110,12 +110,35 @@
     if (fig && !fig.style.backgroundImage) fig.style.backgroundImage = `url("${p}")`;
   };
   $$('.item video').forEach(v => {
+    v.addEventListener('playing', () => { const fig = v.closest('.item'); if (fig) fig.classList.remove('anim-on'); });
     const show = () => v.classList.add('shown');
     v.addEventListener('loadeddata', show, { once: true });
     v.addEventListener('playing', show, { once: true });
     if (v.readyState >= 2) show();
   });
-  const tryPlay = v => { const p = v.play(); if (p && p.catch) p.catch(() => {}); };
+  // A phone that won't start videos by itself (an iPhone in Low Power Mode blocks them on every
+  // website) still animates images: a cover video then shows its animated version instead, until
+  // the video itself plays. The same stands in while a cover video is still loading.
+  let videoBlocked = false;
+  const showAnim = v => {
+    const fig = v.closest('.item');
+    if (!fig || !v.dataset.anim) return;
+    if (!fig.querySelector('img.anim')) {
+      const img = document.createElement('img');
+      img.className = 'anim';
+      img.alt = '';
+      img.src = v.dataset.anim;
+      v.after(img);
+    }
+    fig.classList.add('anim-on');
+  };
+  const tryPlay = v => {
+    if (videoBlocked) showAnim(v);
+    const p = v.play();
+    if (p && p.catch) p.catch(err => { if (err && err.name === 'NotAllowedError') { videoBlocked = true; showAnim(v); } });
+    // some phones just leave it paused without saying so
+    if (v.dataset.anim) setTimeout(() => { if (v.paused && !v.ended && document.visibilityState === 'visible' && v.offsetWidth) showAnim(v); }, 1500);
+  };
   const load = v => {
     if (v.dataset.loaded) return;
     v.dataset.loaded = '1';
@@ -699,6 +722,12 @@
   route();
   strips.forEach(count);
   addEventListener('resize', () => { measure(); strips.forEach(count); });
+  // iPhone Safari changes the visible height as its toolbar settles, without always telling the
+  // page: keep an eye on it and lay the page out again when it changes
+  let lastH = innerHeight;
+  const watchHeight = () => { if (innerHeight !== lastH) { lastH = innerHeight; measure(); } };
+  setInterval(watchHeight, 500);
+  if (window.visualViewport) visualViewport.addEventListener('resize', watchHeight);
   addEventListener('load', measure);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
 })();
